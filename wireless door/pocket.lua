@@ -1,5 +1,7 @@
 peripheral.find("modem", rednet.open)
-local basalt = basalt.GetMainFrame()
+
+local basalt = require("basalt")
+local main = basalt.getMainFrame()
 
 main:addButton()
     :setText("Open Door")
