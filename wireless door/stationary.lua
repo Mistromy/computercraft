@@ -7,9 +7,9 @@ while true do
 
     if message == "open" then
         print("Door is opening...")
-        rs.setOutput("front", true)        
+        rs.setOutput("front", false)        
     elseif message == "close" then
         print("Door is closing...")
-        rs.setOutput("front", false)        
+        rs.setOutput("front", true)        
     end
 end
