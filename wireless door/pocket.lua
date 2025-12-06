@@ -23,4 +23,10 @@ main:addButton()
         self:setText("Close Door")
     end)
 
+while true do
+    local id, message = rednet.receive()
+    if message == "ping" then
+        rednet.send(1, "pong")
+    end
+
 basalt.run()
