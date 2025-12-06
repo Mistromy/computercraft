@@ -23,10 +23,16 @@ main:addButton()
         self:setText("Close Door")
     end)
 
-while true do
-    local id, message = rednet.receive()
-    if message == "ping" then
-        rednet.send(1, "pong")
+local function listener()
+    while true do
+        -- wait up to 5 seconds for any message so this loop doesn't block forever
+        local id, message = rednet.receive(nil, 5)
+        if id and message == "ping" then
+            -- reply to the sender so the controller gets the pong
+            rednet.send(id, "pong")
+        end
     end
+end
 
-basalt.run()
+-- Run UI and listener in parallel so the UI stays responsive
+parallel.waitForAny(basalt.run, listener)

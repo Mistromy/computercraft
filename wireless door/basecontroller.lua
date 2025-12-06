@@ -48,7 +48,7 @@ monitorFrame:addButton()
                 -- no pong received within timeout: close the door
                 rednet.send(controllerId, "close")
             end
-            sleep(30)
+            sleep(10)
         end
     end
 
