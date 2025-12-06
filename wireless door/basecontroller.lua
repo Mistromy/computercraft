@@ -4,6 +4,8 @@ local basalt = require("basalt")
 local main = basalt.getMainFrame()
 local speaker = peripheral.find("speaker")
 local monitor = peripheral.find("monitor")
+local mobileId = 8
+local controllerId = 7
 local monitorFrame = basalt.createFrame()
     :setTerm(monitor)
 
@@ -31,11 +33,22 @@ monitorFrame:addButton()
         self:setText("Close Door")
     end)
 
-    -- Dead Man's Switch to disable base after logout
+    local function pocketConnect()
+        while true do
+            local id, message = rednet.receive()
+                if message == "open" then
+                    rednet.send(controllerId, "open")
+                    doorState = "open"
+                elseif message == "close" then
+                    rednet.send(controllerId, "close")
+                    doorState = "closed"
+                
+            end
+        end
+    end
+
     -- Dead Man's Switch to disable base after logout
     local function deadmanLoop()
-        local mobileId = 8
-        local controllerId = 7
         while true do
             rednet.send(mobileId, "ping")
             -- wait up to 5 seconds for a pong
@@ -53,4 +66,4 @@ monitorFrame:addButton()
     end
 
     -- Run the UI and the deadman loop in parallel so the UI stays responsive.
-    parallel.waitForAny(basalt.run, deadmanLoop)
+    parallel.waitForAny(basalt.run, deadmanLoop, pocketConnect)
