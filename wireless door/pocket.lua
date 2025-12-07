@@ -3,6 +3,8 @@ peripheral.find("modem", rednet.open)
 local basalt = require("basalt")
 local main = basalt.getMainFrame()
 
+shell.run("gpsapp.lua")
+
 main:addButton()
     :setText("Open Door")
     :setPosition(1,1)
