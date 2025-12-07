@@ -118,49 +118,50 @@ def serve_renderer():
 <head>
     <title>Turtle Command</title>
     <style>
-        body { margin: 0; background: #0b0b0b; overflow: hidden; font-family: 'Segoe UI', monospace; color: white; }
+        body { margin: 0; background: #080808; overflow: hidden; font-family: 'Segoe UI', monospace; color: white; }
         canvas { display: block; }
         
         /* UI Panel */
         #ui { 
             position: absolute; top: 10px; left: 10px; 
-            background: rgba(20, 20, 20, 0.9); 
+            background: rgba(15, 15, 15, 0.95); 
             padding: 15px; 
-            border: 1px solid #444; 
+            border: 1px solid #333; 
             border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.7);
             min-width: 200px;
+            backdrop-filter: blur(5px);
         }
         
-        .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
-        .stat-val { font-weight: bold; color: #00ffcc; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: #aaa; }
+        .stat-val { font-weight: bold; color: #00ffcc; font-family: monospace; font-size: 14px;}
         
         /* Buttons */
         .btn-group { display: flex; gap: 10px; margin-top: 15px; }
         button {
-            background: #333; color: white; border: 1px solid #555;
+            background: #222; color: #ddd; border: 1px solid #444;
             padding: 8px 12px; cursor: pointer; border-radius: 4px;
-            font-size: 12px; flex: 1; transition: 0.2s;
+            font-size: 12px; flex: 1; transition: all 0.2s;
+            font-weight: bold;
         }
-        button:hover { background: #555; border-color: #777; }
-        button:active { background: #00ffcc; color: black; }
+        button:hover { background: #333; border-color: #666; color: white; }
+        button:active { background: #00ffcc; color: black; border-color: #00ffcc;}
 
-        /* Status Indicator */
         #status { font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div style="border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; font-weight:bold;">SYSTEM TRACKER</div>
+        <div style="border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 12px; font-weight:bold; letter-spacing: 1px; color: #fff;">SYSTEM TRACKER</div>
         
         <div class="stat-row"><span>STATUS:</span> <span id="status" style="color: lime">Connecting...</span></div>
         <div class="stat-row"><span>MOUSE:</span> <span id="coords" class="stat-val">0, 0</span></div>
         <div class="stat-row"><span>ZOOM:</span> <span id="zoomLvl" class="stat-val">10.0x</span></div>
-        <div class="stat-row"><span>POINTS:</span> <span id="pointCount" class="stat-val">0</span></div>
+        <div class="stat-row"><span>BLOCKS:</span> <span id="pointCount" class="stat-val">0</span></div>
 
         <div class="btn-group">
-            <button onclick="centerOnPlayer()">FIND PLAYER</button>
-            <button onclick="fitMap()">FIT ALL</button>
+            <button onclick="centerOnPlayer()">JUMP TO PLAYER</button>
+            <button onclick="fitMap()">FIT SCREEN</button>
         </div>
     </div>
     
@@ -211,141 +212,143 @@ def serve_renderer():
         
         canvas.addEventListener('wheel', e => {
             const zoomSpeed = 0.1;
+            // Zoom towards mouse pointer logic could go here, but center zoom is simpler
             if (e.deltaY < 0) camera.zoom *= (1 + zoomSpeed);
             else camera.zoom /= (1 + zoomSpeed);
-            uiZoom.innerText = camera.zoom.toFixed(1);
+            uiZoom.innerText = camera.zoom.toFixed(1) + "x";
             draw();
         });
 
         // --- BUTTON ACTIONS ---
         function centerOnPlayer() {
             if (currentPos) {
-                // Animate or Snap? Let's Snap for now.
                 camera.x = currentPos[0];
                 camera.y = currentPos[1];
-                camera.zoom = 20; // Zoom in when finding player
+                camera.zoom = 30; // Close up zoom
                 draw();
             }
         }
 
         function fitMap() {
             if (mapData.length === 0) return;
-            
-            // Find bounds
             let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
             mapData.forEach(b => {
-                if (b[0] < minX) minX = b[0];
-                if (b[0] > maxX) maxX = b[0];
-                if (b[1] < minZ) minZ = b[1];
-                if (b[1] > maxZ) maxZ = b[1];
+                if (b[0] < minX) minX = b[0]; if (b[0] > maxX) maxX = b[0];
+                if (b[1] < minZ) minZ = b[1]; if (b[1] > maxZ) maxZ = b[1];
             });
-
-            const width = maxX - minX;
-            const height = maxZ - minZ;
-            const centerX = minX + width / 2;
-            const centerZ = minZ + height / 2;
-
-            // Calculate zoom to fit (with 50px padding)
-            const zoomX = (canvas.width - 100) / width;
-            const zoomY = (canvas.height - 100) / height;
-            
-            camera.x = centerX;
-            camera.y = centerZ;
+            const width = maxX - minX + 1; // +1 for block width
+            const height = maxZ - minZ + 1;
+            camera.x = minX + width / 2;
+            camera.y = minZ + height / 2;
+            // Calculate zoom with padding
+            const padding = 100;
+            const zoomX = (canvas.width - padding) / width;
+            const zoomY = (canvas.height - padding) / height;
             camera.zoom = Math.min(zoomX, zoomY);
-            // Cap max zoom out to prevent bugs
-            if (camera.zoom < 0.1) camera.zoom = 0.1;
+            if (camera.zoom < 0.1) camera.zoom = 0.1; 
             
-            uiZoom.innerText = camera.zoom.toFixed(1);
+            uiZoom.innerText = camera.zoom.toFixed(1) + "x";
             draw();
         }
 
-        // --- DRAWING HELPERS ---
+        // --- NEW: SMOOTH COLOR GRADIENT ---
+        // Define color stops for the gradient (R, G, B)
+        // Deep Purple -> Violet -> Red -> Orange -> Yellow -> White
+        const colorStops = [
+            [30, 0, 60],    // 0.0 (Darkest)
+            [90, 0, 140],   // 0.2
+            [180, 0, 50],   // 0.4
+            [255, 80, 0],   // 0.6
+            [255, 200, 0],  // 0.8
+            [255, 255, 240] // 1.0 (Brightest)
+        ];
+
         function getColor(val) {
+            // 1. Normalize value logarithmically (0.0 to 1.0)
             let norm = Math.log(val) / Math.log(maxCount || 1); 
-            if (val === 1) norm = 0; 
+            if (val <= 1) norm = 0; 
             if (norm > 1) norm = 1;
+
+            // 2. Find which two color stops we are between
+            // Map norm (0-1) to indices (0 - 5)
+            let rawIndex = norm * (colorStops.length - 1);
+            let idx1 = Math.floor(rawIndex);
+            let idx2 = Math.min(idx1 + 1, colorStops.length - 1);
             
-            if (norm < 0.25) return `rgb(80, 0, 150)`;  
-            if (norm < 0.50) return `rgb(200, 0, 50)`;  
-            if (norm < 0.75) return `rgb(255, 140, 0)`; 
-            return `rgb(255, 255, ${255 * (norm - 0.75) * 4})`; 
+            // 3. Calculate interpolation factor 't' (how far between the two stops)
+            let t = rawIndex - idx1; 
+
+            let c1 = colorStops[idx1];
+            let c2 = colorStops[idx2];
+
+            // 4. Linear Interpolate RGB values
+            let r = Math.floor(c1[0] + t * (c2[0] - c1[0]));
+            let g = Math.floor(c1[1] + t * (c2[1] - c1[1]));
+            let b = Math.floor(c1[2] + t * (c2[2] - c1[2]));
+
+            return `rgb(${r}, ${g}, ${b})`;
         }
 
         // --- MAIN DRAW ---
         function draw() {
-            // Clear
-            ctx.fillStyle = '#0b0b0b';
+            ctx.fillStyle = '#080808'; // Slightly lighter background
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
 
-            // --- 1. DYNAMIC GRID SYSTEM ---
-            // Determine grid step based on zoom
+            // --- 1. DYNAMIC GRID ---
             let step = 1;
-            if (camera.zoom < 10) step = 10;
-            if (camera.zoom < 2) step = 50;
-            if (camera.zoom < 0.5) step = 100;
-            if (camera.zoom < 0.1) step = 500;
+            if (camera.zoom <= 15) step = 10;
+            if (camera.zoom <= 3) step = 50;
+            if (camera.zoom <= 0.8) step = 100;
+            if (camera.zoom <= 0.2) step = 500;
 
-            // Calculate visible range
             const startX = Math.floor((camera.x - cx / camera.zoom) / step) * step;
             const endX = Math.ceil((camera.x + cx / camera.zoom) / step) * step;
             const startZ = Math.floor((camera.y - cy / camera.zoom) / step) * step;
             const endZ = Math.ceil((camera.y + cy / camera.zoom) / step) * step;
 
             ctx.lineWidth = 1;
-            ctx.font = "10px monospace";
-            ctx.fillStyle = "#888"; // Text color
+            ctx.font = "11px monospace";
+            ctx.fillStyle = "#666";
 
-            // Draw X Lines (Vertical)
+            // Draw X Lines
             for (let x = startX; x <= endX; x += step) {
                 let screenX = (x - camera.x) * camera.zoom + cx;
-                
-                // Line Style
                 ctx.beginPath();
-                if (x === 0) ctx.strokeStyle = "#44ff44"; // Origin X is Green
-                else ctx.strokeStyle = "#222"; 
+                ctx.strokeStyle = (x === 0) ? "#336633" : "#1a1a1a"; 
                 ctx.moveTo(screenX, 0); ctx.lineTo(screenX, canvas.height);
                 ctx.stroke();
-
-                // Text Label
-                if (step >= 10 || camera.zoom > 15) {
-                    ctx.fillText(x, screenX + 2, 12); // Top coordinates
-                }
+                if (step >= 10 || camera.zoom > 20) ctx.fillText(x, screenX + 4, 14);
             }
 
-            // Draw Z Lines (Horizontal)
+            // Draw Z Lines
             for (let z = startZ; z <= endZ; z += step) {
                 let screenZ = (z - camera.y) * camera.zoom + cy;
-                
-                // Line Style
                 ctx.beginPath();
-                if (z === 0) ctx.strokeStyle = "#44ff44"; // Origin Z is Green
-                else ctx.strokeStyle = "#222"; 
+                ctx.strokeStyle = (z === 0) ? "#336633" : "#1a1a1a"; 
                 ctx.moveTo(0, screenZ); ctx.lineTo(canvas.width, screenZ);
                 ctx.stroke();
-
-                // Text Label
-                if (step >= 10 || camera.zoom > 15) {
-                    ctx.fillText(z, 5, screenZ - 2); // Left coordinates
-                }
+                if (step >= 10 || camera.zoom > 20) ctx.fillText(z, 6, screenZ - 4);
             }
 
-            // --- 2. DRAW BLOCKS ---
+            // --- 2. DRAW BLOCKS (With smooth colors) ---
+            // Disable anti-aliasing for sharp block edges
+            ctx.imageSmoothingEnabled = false; 
+
             mapData.forEach(block => {
                 const [x, z, count] = block;
                 const screenX = (x - camera.x) * camera.zoom + cx;
                 const screenZ = (z - camera.y) * camera.zoom + cy;
 
-                // Simple Culling
                 if (screenX < -camera.zoom || screenX > canvas.width || 
                     screenZ < -camera.zoom || screenZ > canvas.height) return;
 
                 ctx.fillStyle = getColor(count);
-                // Make blocks overlap slightly to prevent cracks
-                let size = camera.zoom < 1 ? camera.zoom : camera.zoom + 0.5;
-                ctx.fillRect(screenX, screenZ, size, size);
+                // Use a slight overlap (0.6) to prevent sub-pixel rendering gaps
+                let overlap = camera.zoom < 1 ? 0 : 0.6;
+                ctx.fillRect(screenX, screenZ, camera.zoom + overlap, camera.zoom + overlap);
             });
 
             // --- 3. CURRENT PLAYER ---
@@ -353,22 +356,22 @@ def serve_renderer():
                 const screenX = (currentPos[0] - camera.x) * camera.zoom + cx;
                 const screenZ = (currentPos[1] - camera.y) * camera.zoom + cy;
                 
-                ctx.fillStyle = '#00ff00';
-                ctx.fillRect(screenX, screenZ, camera.zoom, camera.zoom);
+                // Draw glowing crosshair
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                // Horizontal line
+                ctx.moveTo(screenX - 10, screenZ + camera.zoom/2);
+                ctx.lineTo(screenX + camera.zoom + 10, screenZ + camera.zoom/2);
+                // Vertical line
+                ctx.moveTo(screenX + camera.zoom/2, screenZ - 10);
+                ctx.lineTo(screenX + camera.zoom/2, screenZ + camera.zoom + 10);
+                ctx.stroke();
                 
-                // Crosshair indicator
-                if (camera.zoom < 5) {
-                    // If zoomed out far, draw a big circle around player so you don't lose them
-                    ctx.beginPath();
-                    ctx.strokeStyle = '#00ff00';
-                    ctx.lineWidth = 2;
-                    ctx.arc(screenX, screenZ, 10, 0, 2*Math.PI);
-                    ctx.stroke();
-                } else {
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(screenX, screenZ, camera.zoom, camera.zoom);
-                }
+                // Draw box
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.fillRect(screenX, screenZ, camera.zoom, camera.zoom);
+                ctx.strokeRect(screenX, screenZ, camera.zoom, camera.zoom);
             }
         }
 
@@ -380,16 +383,16 @@ def serve_renderer():
                 
                 mapData = json.blocks;
                 currentPos = json.current;
-                uiPoints.innerText = mapData.length;
+                uiPoints.innerText = mapData.length.toLocaleString();
 
-                // Max Calculation
                 maxCount = 1;
                 mapData.forEach(b => { if(b[2] > maxCount) maxCount = b[2]; });
 
-                // First Load Behavior
-                if (isFirstLoad && currentPos) {
-                    camera.x = currentPos[0];
-                    camera.y = currentPos[1];
+                if (isFirstLoad && currentPos && mapData.length > 0) {
+                    centerOnPlayer();
+                    isFirstLoad = false;
+                } else if (isFirstLoad && mapData.length > 0) {
+                    fitMap();
                     isFirstLoad = false;
                 }
                 
@@ -398,8 +401,8 @@ def serve_renderer():
                 draw();
             } catch (err) {
                 console.error(err);
-                uiStatus.innerText = "OFFLINE";
-                uiStatus.style.color = "red";
+                uiStatus.innerText = "CONNECTION LOST";
+                uiStatus.style.color = "#ff3333";
             }
         }
 
