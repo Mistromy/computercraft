@@ -61,7 +61,7 @@ def get_points_on_line(x0, y0, x1, y1):
     points.append((x, y))
     return points
 
-# --- API: TURTLE INPUT ---
+# --- API: BATCH LOGGING ---
 @app.post("/api/batch")
 def log_batch(pings: List[Ping]):
     with sqlite3.connect(DB_PATH) as conn:
@@ -71,7 +71,7 @@ def log_batch(pings: List[Ping]):
         conn.commit()
     return {"status": "success"}
 
-# --- API: BROWSER DATA FETCH ---
+# --- API: MAP DATA ---
 @app.get("/api/map-data")
 def get_map_data():
     with sqlite3.connect(DB_PATH) as conn:
@@ -82,29 +82,26 @@ def get_map_data():
     if not data:
         return {"blocks": [], "current": None}
 
-    # 1. Interpolate Path
+    # Interpolate
     all_blocks = []
     for i in range(len(data) - 1):
         x1, z1 = int(math.floor(data[i][0])), int(math.floor(data[i][1]))
         x2, z2 = int(math.floor(data[i+1][0])), int(math.floor(data[i+1][1]))
         
-        # Skip teleports
         if abs(x1 - x2) > 50 or abs(z1 - z2) > 50:
             all_blocks.append((x1, z1))
             continue
             
         all_blocks.extend(get_points_on_line(x1, z1, x2, z2))
 
-    # Add last point
-    last_x = int(math.floor(data[-1][0]))
-    last_z = int(math.floor(data[-1][1]))
-    all_blocks.append((last_x, last_z))
+    if data:
+        last_x = int(math.floor(data[-1][0]))
+        last_z = int(math.floor(data[-1][1]))
+        all_blocks.append((last_x, last_z))
+    else:
+        last_x, last_z = 0, 0
 
-    # 2. Count Frequency
     counts = Counter(all_blocks)
-    
-    # 3. Format for JSON: [[x, z, count], ...]
-    # This is very lightweight to send
     result_grid = [[k[0], k[1], v] for k, v in counts.items()]
     
     return {
@@ -112,27 +109,61 @@ def get_map_data():
         "current": [last_x, last_z]
     }
 
-# --- FRONTEND: THE WEB RENDERER ---
+# --- FRONTEND: ADVANCED UI RENDERER ---
 @app.get("/live", response_class=HTMLResponse)
 def serve_renderer():
-    # We serve the HTML/JS directly from Python so you don't need extra files
     return """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Turtle Tracker</title>
+    <title>Turtle Command</title>
     <style>
-        body { margin: 0; background: #050505; overflow: hidden; font-family: monospace; color: white; }
+        body { margin: 0; background: #0b0b0b; overflow: hidden; font-family: 'Segoe UI', monospace; color: white; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border: 1px solid #444; pointer-events: none; }
+        
+        /* UI Panel */
+        #ui { 
+            position: absolute; top: 10px; left: 10px; 
+            background: rgba(20, 20, 20, 0.9); 
+            padding: 15px; 
+            border: 1px solid #444; 
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            min-width: 200px;
+        }
+        
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
+        .stat-val { font-weight: bold; color: #00ffcc; }
+        
+        /* Buttons */
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button {
+            background: #333; color: white; border: 1px solid #555;
+            padding: 8px 12px; cursor: pointer; border-radius: 4px;
+            font-size: 12px; flex: 1; transition: 0.2s;
+        }
+        button:hover { background: #555; border-color: #777; }
+        button:active { background: #00ffcc; color: black; }
+
+        /* Status Indicator */
+        #status { font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div>STATUS: <span id="status" style="color: lime">Connecting...</span></div>
-        <div>COORDS: <span id="coords">0, 0</span></div>
-        <div>ZOOM: <span id="zoomLvl">1.0</span>x</div>
+        <div style="border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 10px; font-weight:bold;">SYSTEM TRACKER</div>
+        
+        <div class="stat-row"><span>STATUS:</span> <span id="status" style="color: lime">Connecting...</span></div>
+        <div class="stat-row"><span>MOUSE:</span> <span id="coords" class="stat-val">0, 0</span></div>
+        <div class="stat-row"><span>ZOOM:</span> <span id="zoomLvl" class="stat-val">10.0x</span></div>
+        <div class="stat-row"><span>POINTS:</span> <span id="pointCount" class="stat-val">0</span></div>
+
+        <div class="btn-group">
+            <button onclick="centerOnPlayer()">FIND PLAYER</button>
+            <button onclick="fitMap()">FIT ALL</button>
+        </div>
     </div>
+    
     <canvas id="mapCanvas"></canvas>
 
     <script>
@@ -141,16 +172,18 @@ def serve_renderer():
         const uiCoords = document.getElementById('coords');
         const uiZoom = document.getElementById('zoomLvl');
         const uiStatus = document.getElementById('status');
+        const uiPoints = document.getElementById('pointCount');
 
         // STATE
-        let camera = { x: 0, y: 0, zoom: 10 }; // x,y is center of screen
+        let camera = { x: 0, y: 0, zoom: 15 }; 
         let isDragging = false;
         let lastMouse = { x: 0, y: 0 };
         let mapData = [];
         let currentPos = null;
         let maxCount = 1;
+        let isFirstLoad = true;
 
-        // RESIZE
+        // --- RESIZE ---
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -158,11 +191,10 @@ def serve_renderer():
         }
         window.addEventListener('resize', resize);
         
-        // --- INPUT HANDLING (PAN/ZOOM) ---
+        // --- CONTROLS ---
         canvas.addEventListener('mousedown', e => { isDragging = true; lastMouse = { x: e.clientX, y: e.clientY }; });
         canvas.addEventListener('mouseup', () => isDragging = false);
         canvas.addEventListener('mousemove', e => {
-            // Update UI Coords
             const worldX = Math.floor((e.clientX - canvas.width/2) / camera.zoom + camera.x);
             const worldZ = Math.floor((e.clientY - canvas.height/2) / camera.zoom + camera.y);
             uiCoords.innerText = `${worldX}, ${worldZ}`;
@@ -185,79 +217,138 @@ def serve_renderer():
             draw();
         });
 
-        // --- COLOR MAP (INFERNO-ISH) ---
-        function getColor(val) {
-            // Logarithmic scaling logic
-            let norm = Math.log(val) / Math.log(maxCount || 1); 
-            if (val === 1) norm = 0; 
-            if (norm > 1) norm = 1;
-
-            // Simple Heatmap Gradient: Purple -> Red -> Yellow -> White
-            if (norm < 0.33) {
-                // Purple (50, 0, 100) to Red (255, 0, 0)
-                let r = 50 + (205 * (norm / 0.33));
-                let b = 100 - (100 * (norm / 0.33));
-                return `rgb(${r}, 0, ${b})`;
-            } else if (norm < 0.66) {
-                // Red to Yellow (255, 255, 0)
-                let g = 255 * ((norm - 0.33) / 0.33);
-                return `rgb(255, ${g}, 0)`;
-            } else {
-                // Yellow to White
-                let w = 255 * ((norm - 0.66) / 0.34);
-                return `rgb(255, 255, ${w})`;
+        // --- BUTTON ACTIONS ---
+        function centerOnPlayer() {
+            if (currentPos) {
+                // Animate or Snap? Let's Snap for now.
+                camera.x = currentPos[0];
+                camera.y = currentPos[1];
+                camera.zoom = 20; // Zoom in when finding player
+                draw();
             }
         }
 
-        // --- RENDER LOOP ---
+        function fitMap() {
+            if (mapData.length === 0) return;
+            
+            // Find bounds
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            mapData.forEach(b => {
+                if (b[0] < minX) minX = b[0];
+                if (b[0] > maxX) maxX = b[0];
+                if (b[1] < minZ) minZ = b[1];
+                if (b[1] > maxZ) maxZ = b[1];
+            });
+
+            const width = maxX - minX;
+            const height = maxZ - minZ;
+            const centerX = minX + width / 2;
+            const centerZ = minZ + height / 2;
+
+            // Calculate zoom to fit (with 50px padding)
+            const zoomX = (canvas.width - 100) / width;
+            const zoomY = (canvas.height - 100) / height;
+            
+            camera.x = centerX;
+            camera.y = centerZ;
+            camera.zoom = Math.min(zoomX, zoomY);
+            // Cap max zoom out to prevent bugs
+            if (camera.zoom < 0.1) camera.zoom = 0.1;
+            
+            uiZoom.innerText = camera.zoom.toFixed(1);
+            draw();
+        }
+
+        // --- DRAWING HELPERS ---
+        function getColor(val) {
+            let norm = Math.log(val) / Math.log(maxCount || 1); 
+            if (val === 1) norm = 0; 
+            if (norm > 1) norm = 1;
+            
+            if (norm < 0.25) return `rgb(80, 0, 150)`;  
+            if (norm < 0.50) return `rgb(200, 0, 50)`;  
+            if (norm < 0.75) return `rgb(255, 140, 0)`; 
+            return `rgb(255, 255, ${255 * (norm - 0.75) * 4})`; 
+        }
+
+        // --- MAIN DRAW ---
         function draw() {
-            // Clear Screen
-            ctx.fillStyle = '#050505';
+            // Clear
+            ctx.fillStyle = '#0b0b0b';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
 
-            // 1. Draw Grid (Optional, triggers if zoomed in)
-            if (camera.zoom > 15) {
-                ctx.beginPath();
-                ctx.strokeStyle = '#222';
-                ctx.lineWidth = 1;
-                
-                // Calculate visible range to optimize
-                const startX = Math.floor(camera.x - cx / camera.zoom);
-                const endX = Math.ceil(camera.x + cx / camera.zoom);
-                const startY = Math.floor(camera.y - cy / camera.zoom);
-                const endY = Math.ceil(camera.y + cy / camera.zoom);
+            // --- 1. DYNAMIC GRID SYSTEM ---
+            // Determine grid step based on zoom
+            let step = 1;
+            if (camera.zoom < 10) step = 10;
+            if (camera.zoom < 2) step = 50;
+            if (camera.zoom < 0.5) step = 100;
+            if (camera.zoom < 0.1) step = 500;
 
-                for (let x = startX; x <= endX; x++) {
-                    let screenX = (x - camera.x) * camera.zoom + cx;
-                    ctx.moveTo(screenX, 0); ctx.lineTo(screenX, canvas.height);
-                }
-                for (let y = startY; y <= endY; y++) {
-                    let screenY = (y - camera.y) * camera.zoom + cy;
-                    ctx.moveTo(0, screenY); ctx.lineTo(canvas.width, screenY);
-                }
+            // Calculate visible range
+            const startX = Math.floor((camera.x - cx / camera.zoom) / step) * step;
+            const endX = Math.ceil((camera.x + cx / camera.zoom) / step) * step;
+            const startZ = Math.floor((camera.y - cy / camera.zoom) / step) * step;
+            const endZ = Math.ceil((camera.y + cy / camera.zoom) / step) * step;
+
+            ctx.lineWidth = 1;
+            ctx.font = "10px monospace";
+            ctx.fillStyle = "#888"; // Text color
+
+            // Draw X Lines (Vertical)
+            for (let x = startX; x <= endX; x += step) {
+                let screenX = (x - camera.x) * camera.zoom + cx;
+                
+                // Line Style
+                ctx.beginPath();
+                if (x === 0) ctx.strokeStyle = "#44ff44"; // Origin X is Green
+                else ctx.strokeStyle = "#222"; 
+                ctx.moveTo(screenX, 0); ctx.lineTo(screenX, canvas.height);
                 ctx.stroke();
+
+                // Text Label
+                if (step >= 10 || camera.zoom > 15) {
+                    ctx.fillText(x, screenX + 2, 12); // Top coordinates
+                }
             }
 
-            // 2. Draw Heatmap Blocks
-            // Optimization: Only draw blocks inside the screen? 
-            // For < 100k blocks, drawing all is usually fine on modern GPU.
+            // Draw Z Lines (Horizontal)
+            for (let z = startZ; z <= endZ; z += step) {
+                let screenZ = (z - camera.y) * camera.zoom + cy;
+                
+                // Line Style
+                ctx.beginPath();
+                if (z === 0) ctx.strokeStyle = "#44ff44"; // Origin Z is Green
+                else ctx.strokeStyle = "#222"; 
+                ctx.moveTo(0, screenZ); ctx.lineTo(canvas.width, screenZ);
+                ctx.stroke();
+
+                // Text Label
+                if (step >= 10 || camera.zoom > 15) {
+                    ctx.fillText(z, 5, screenZ - 2); // Left coordinates
+                }
+            }
+
+            // --- 2. DRAW BLOCKS ---
             mapData.forEach(block => {
                 const [x, z, count] = block;
                 const screenX = (x - camera.x) * camera.zoom + cx;
                 const screenZ = (z - camera.y) * camera.zoom + cy;
-                
-                // Culling: Don't draw if off screen
-                if (screenX < -camera.zoom || screenX > canvas.width || screenZ < -camera.zoom || screenZ > canvas.height) return;
+
+                // Simple Culling
+                if (screenX < -camera.zoom || screenX > canvas.width || 
+                    screenZ < -camera.zoom || screenZ > canvas.height) return;
 
                 ctx.fillStyle = getColor(count);
-                // Draw rectangle slightly larger to prevent "cracks" between blocks
-                ctx.fillRect(screenX, screenZ, camera.zoom + 0.5, camera.zoom + 0.5);
+                // Make blocks overlap slightly to prevent cracks
+                let size = camera.zoom < 1 ? camera.zoom : camera.zoom + 0.5;
+                ctx.fillRect(screenX, screenZ, size, size);
             });
 
-            // 3. Draw Current Location (Green Box)
+            // --- 3. CURRENT PLAYER ---
             if (currentPos) {
                 const screenX = (currentPos[0] - camera.x) * camera.zoom + cx;
                 const screenZ = (currentPos[1] - camera.y) * camera.zoom + cy;
@@ -265,14 +356,23 @@ def serve_renderer():
                 ctx.fillStyle = '#00ff00';
                 ctx.fillRect(screenX, screenZ, camera.zoom, camera.zoom);
                 
-                // Glow effect
-                ctx.strokeStyle = 'white';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(screenX, screenZ, camera.zoom, camera.zoom);
+                // Crosshair indicator
+                if (camera.zoom < 5) {
+                    // If zoomed out far, draw a big circle around player so you don't lose them
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 2;
+                    ctx.arc(screenX, screenZ, 10, 0, 2*Math.PI);
+                    ctx.stroke();
+                } else {
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(screenX, screenZ, camera.zoom, camera.zoom);
+                }
             }
         }
 
-        // --- DATA FETCHING ---
+        // --- NETWORKING ---
         async function fetchData() {
             try {
                 const res = await fetch('/api/map-data');
@@ -280,31 +380,33 @@ def serve_renderer():
                 
                 mapData = json.blocks;
                 currentPos = json.current;
+                uiPoints.innerText = mapData.length;
 
-                // Recalculate Max for color scaling
-                maxCount = 0;
+                // Max Calculation
+                maxCount = 1;
                 mapData.forEach(b => { if(b[2] > maxCount) maxCount = b[2]; });
 
-                // If first load, center camera on player
-                if (mapData.length > 0 && camera.x === 0 && camera.y === 0 && currentPos) {
+                // First Load Behavior
+                if (isFirstLoad && currentPos) {
                     camera.x = currentPos[0];
                     camera.y = currentPos[1];
+                    isFirstLoad = false;
                 }
                 
-                uiStatus.innerText = "Connected";
-                uiStatus.style.color = "lime";
+                uiStatus.innerText = "ONLINE";
+                uiStatus.style.color = "#00ffcc";
                 draw();
             } catch (err) {
                 console.error(err);
-                uiStatus.innerText = "Disconnected";
+                uiStatus.innerText = "OFFLINE";
                 uiStatus.style.color = "red";
             }
         }
 
-        // Start
+        // Init
         resize();
         fetchData();
-        setInterval(fetchData, 2000); // Refresh data every 2s
+        setInterval(fetchData, 1000);
 
     </script>
 </body>
