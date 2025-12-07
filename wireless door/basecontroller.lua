@@ -51,8 +51,8 @@ monitorFrame:addButton()
     local function deadmanLoop()
         while true do
             rednet.send(mobileId, "ping")
-            -- wait up to 5 seconds for a pong
-            local id, message = rednet.receive(nil, 5)
+            -- wait (nil, ()) seconds for a pong
+            local id, message = rednet.receive(nil, 1)
             if id == mobileId and message == "pong" then
                 if doorState == "open" then
                     rednet.send(controllerId, "open")
@@ -61,7 +61,7 @@ monitorFrame:addButton()
                 -- no pong received within timeout: close the door
                 rednet.send(controllerId, "close")
             end
-            sleep(10)
+            sleep(2)
         end
     end
 
