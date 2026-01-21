@@ -56,12 +56,9 @@ end
 
 print("Starting miner...")
 
-local function normalizeTargetCoords(globalcoords, )
-    return {
-        x = globalcoords.x - origin.x,
-        y = globalcoords.y - origin.y,
-        z = globalcoords.z - origin.z
-    }
+local function normalizeTargetCoords(globalcoords, rotation, TargetPosition)
+        rotation = rotation / 90
+        TargetPosition.x, TargetPosition.y, TargetPosition.z
 end
 
 local function scan()
