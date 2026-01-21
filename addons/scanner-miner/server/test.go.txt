@@ -1,0 +1,8 @@
+// package test
+
+// import "fmt"
+
+// func test() {
+// 	fmt.Println("This is a test file for the scanner-miner addon.")
+// }
+

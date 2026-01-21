@@ -1,5 +1,10 @@
-local scanner = peripheral.find("universal_scanner")
+local hub = peripheral.find("peripheral_hub")
+hub.equip(1)
+hub.equip(2)
+hub.equip(3)
 local chunkloader = peripheral.find("chunkloader")
+local endermodem = peripheral.find("ender_modem")
+local scanner = peripheral.find("universal_scanner")
 local radius = 8
 local targetBlock = "minecraft:ancient_debris"
 turtle.refuel(1000)
@@ -7,6 +12,8 @@ local fuel = turtle.getFuelLevel()
 local localcoords = {x = 0, y = 0, z = 0}
 local hasChest = false
 local targetBlocks = {}
+local globalcoords = gps.locate()
+
 if not scanner then
     print("No universal scanner found. Please attach a universal scanner peripheral.")
     return
