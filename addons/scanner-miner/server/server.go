@@ -8,6 +8,26 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// type Config struct {
+// 	Port             int    `json:"port"`
+// 	McServerIP       string `json:"mc_server_ip"`
+// 	McServerPort     int    `json:"mc_server_port"`
+// 	DebugMode        bool   `json:"debug_mode"`
+// 	TargetBlock      string `json:"target_block"`
+// 	MaxMinerPerFleet int    `json:"max_miner_per_fleet"`
+// }
+
+// func getDefaultConfig() Config {
+// 	return Config{
+// 		Port:             8080,
+// 		McServerIP:       "",
+// 		McServerPort:     25565,
+// 		DebugMode:        false,
+// 		TargetBlock:      "minecraft:ancient_debris",
+// 		MaxMinerPerFleet: 6,
+// 	}
+// }
+
 type pos struct {
 	X int `json:"x"`
 	Y int `json:"y"`
@@ -16,13 +36,14 @@ type pos struct {
 
 type xform struct {
 	Position pos `json:"position"`
-	Rotation pos `json:"rotation"`
+	Rotation int `json:"rotation"`
 }
 
 type TurtleData struct {
 	Name      string `json:"name"`
 	Fuel      int    `json:"fuel"`
 	Transform xform  `json:"transform"`
+	Error     string `json:"error"`
 }
 
 type MinerMsg struct {

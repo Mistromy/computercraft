@@ -1,0 +1,8 @@
+{
+"Port":                 8080,
+"McServerIP":           "",
+"McServerPort":         25565,
+"DebugMode":            false,
+"TargetBlock":          "minecraft:ancient_debris",
+"MaxMinerPerFleet":     6
+}
