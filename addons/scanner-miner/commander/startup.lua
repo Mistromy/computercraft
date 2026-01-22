@@ -56,11 +56,6 @@ end
 
 print("Starting miner...")
 
-local function normalizeTargetCoords(globalcoords, rotation, TargetPosition)
-        rotation = rotation / 90
-        TargetPosition.x, TargetPosition.y, TargetPosition.z
-end
-
 local function scan()
     local globalcoords, success = gps.locate()
     if not success then
@@ -90,4 +85,4 @@ while true do -- Spiral Movement Outwards Loop. Distance between spiral arms is 
         turtle.turnLeft()
     end  
 spiralsidemultiplier = spiralsidemultiplier + 1
-end 
+end

@@ -28,36 +28,55 @@ import (
 // 	}
 // }
 
-type pos struct {
+type Location struct {
 	X int `json:"x"`
 	Y int `json:"y"`
 	Z int `json:"z"`
 }
 
-type xform struct {
-	Position pos `json:"position"`
-	Rotation int `json:"rotation"`
+type Target struct {
+	Location Location `json:"location"`
+	Type     string   `json:"type"`
+}
+
+type Xform struct {
+	Position  Location  `json:"position"`
+	Direction Direction `json:"rotation"`
+}
+
+type Direction int
+
+const (
+	South Direction = iota
+	East
+	North
+	West
+)
+
+type Scan struct {
+	Targets        []Target `json:"targets"`
+	TurtleLocation Xform    `json:"turtle_location"`
 }
 
 type TurtleData struct {
 	Name      string `json:"name"`
 	Fuel      int    `json:"fuel"`
-	Transform xform  `json:"transform"`
+	Transform Xform  `json:"transform"`
 	Error     string `json:"error"`
 }
 
 type MinerMsg struct {
-	Name      string `json:"name"`
-	Fuel      int    `json:"fuel"`
-	Transform xform  `json:"transform"`
-	Target    pos    `json:"target"`
-	Status    string `json:"status"`
+	Name      string   `json:"name"`
+	Fuel      int      `json:"fuel"`
+	Transform Xform    `json:"transform"`
+	Target    Location `json:"target"`
+	Status    string   `json:"status"`
 }
 
 type CommanderMsg struct {
 	Fuel      int   `json:"fuel"`
-	Transform xform `json:"transform"`
-	Scan      []int `json:"scan"`
+	Transform Xform `json:"transform"`
+	Scan      `json:"scan"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -65,9 +84,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
-	fmt.Println("Scanner Miner starting...")
-	fmt.Println("Classes:")
-	fmt.Println("Commander, Miners, and Transporters")
+	fmt.Println("Server Starting...")
 
 	http.HandleFunc("/cstatus", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Commander is online.")
@@ -117,4 +134,18 @@ func CommanderConnection(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+}
+
+func RotateAxis(Transform Xform) (int, int) {
+	switch Transform.Direction {
+	case 0:
+		return Transform.Position.X, Transform.Position.Z
+	case 1:
+		return -Transform.Position.Z, Transform.Position.X
+	case 2:
+		return -Transform.Position.X, -Transform.Position.Z
+	case 3:
+		return Transform.Position.Z, -Transform.Position.X
+	}
+	return 0, 0
 }
