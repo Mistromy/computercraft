@@ -5,7 +5,7 @@ local radius = 8
 
 local function scan()
     local scanData = scanner.scan("block", radius)
-    sleep(1)
+    sleep(1.5)
     for _, block in ipairs(scanData) do
         if block.x == 0 then
             if block.name == "minecraft:ancient_debris" then
@@ -29,15 +29,18 @@ local function scan()
                 end
 
                 for i = 1, x do
-                    turtle.forward()
+                   turtle.dig()
+                   turtle.forward()
                 end
 
                 if y > 0 then
                     for i = 1, y do
+                        turtle.digUp()
                         turtle.up()
                     end
                 else
                     for i = 1, -y do
+                        turtle.digDown()
                         turtle.down()
                     end
                 end
@@ -55,10 +58,10 @@ local function scan()
                 end
 
                 for i = 1, z do
-                    turtle.forward()
+                   turtle.dig()
+                   turtle.forward()
                 end
                 turtle.dig()
-
                 resetRot()
             end
         end
@@ -67,6 +70,7 @@ end
 
 
 while true do -- Spiral Movement Outwards Loop. Distance between spiral arms is radius * 2 = 16
+    turtle.dig()
     turtle.forward()
     scan()
 end
