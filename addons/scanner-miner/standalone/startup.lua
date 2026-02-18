@@ -1,150 +1,44 @@
 turtle.refuel(1000)
 local fuel = turtle.getFuelLevel()
+if fuel < 100 then
+    print("Low on fuel.")
+end
+local origin = {x=0, y=0, z=0}
+local currentPos = {x=0, y=0, z=0}
 
 local scanner = peripheral.find("universal_scanner")
 local radius = 8
+print("Scanning at radius " .. radius)
 
-local function scan()
+local function resetRot()
+    while direction > 1 do
+        turtle.turnLeft()
+        direction = direction - 1
+    end
+end
+
+-- Direction Cheatsheet: forward: 1. right: 2. back: 3. left: 4.
+
+local function ManhattanDistance(pos1, pos2)
+    if not pos2 then pos2 = {x=0, y=0, z=0} end
+    return math.abs(pos1.x - pos2.x) + math.abs(pos1.y - pos2.y) + math.abs(pos1.z - pos2.z)
+end
+
+local function findNearest()
     local scanData = scanner.scan("block", radius)
-    sleep(1.5)
+    sleep(1.5) -- Give Scanner time to process
     for _, block in ipairs(scanData) do
         if block.x == 0 then
             if block.name == "minecraft:ancient_debris" then
-                x = block.x
-                y = block.y
-                z = block.z
-                direction = 1
-
-                local function resetRot()
-                    while direction > 1 do
-                        turtle.turnLeft()
-                        direction = direction - 1
-                    end
+                location = {x=block.x, y=block.y, z=block.z}
+                distance = ManhattanDistance(location)
+                if distance < targetDistance then
+                    targetLocation = location
+                    targetDistance = distance
                 end
-
-                if x < 0 then
-                    turtle.turnRight()
-                    turtle.turnRight()
-                    direction = direction + 2
-                    x = -x
-                end
-
-                for i = 1, x do
-                   turtle.dig()
-                   turtle.forward()
-                end
-
-                if y > 0 then
-                    for i = 1, y do
-                        turtle.digUp()
-                        turtle.up()
-                    end
-                else
-                    for i = 1, -y do
-                        turtle.digDown()
-                        turtle.down()
-                    end
-                end
-
-                resetRot()
-
-                turtle.turnRight()
-                direction = direction + 1
-
-                if z < 0 then
-                    turtle.turnRight()
-                    turtle.turnRight()
-                    direction = direction + 2
-                    z = -z
-                end
-
-                for i = 1, z do
-                   turtle.dig()
-                   turtle.forward()
-                end
-                turtle.dig()
-                resetRot()
             end
         end
     end
-end
-
-local function distance()
-    return math.abs(currentPos.x - origin.x) + math.abs(currentPos.y - origin.y) + math.abs(currentPos.z - origin.z)
-end
-
-local function returnhome()
-    x = currentPos.x - origin.x
-    y = currentPos.y - origin.y
-    z = currentPos.z - origin.z
-
-    direction = 1
-
-    local function resetRot()
-        while direction > 1 do
-            turtle.turnLeft()
-            direction = direction - 1
-        end
-    end
-
-    if x < 0 then
-        turtle.turnRight()
-        turtle.turnRight()
-        direction = direction + 2
-        x = -x
-    end
-
-    for i = 1, x do
-       turtle.dig()
-       turtle.forward()
-    end
-
-    if y > 0 then
-        for i = 1, y do
-            turtle.digUp()
-            turtle.up()
-        end
-    else
-        for i = 1, -y do
-            turtle.digDown()
-            turtle.down()
-        end
-    end
-
-    resetRot()
-
-    turtle.turnRight()
-    direction = direction + 1
-
-    if z < 0 then
-        turtle.turnRight()
-        turtle.turnRight()
-        direction = direction + 2
-        z = -z
-    end
-
-    for i = 1, z do
-       turtle.dig()
-       turtle.forward()
-    end
-    turtle.dig()
-    resetRot()
-
-end
-
-
-local function returntick()
-    fuel = turtle.getFuelLevel()
-    if distance() > fuel * 2 + 100 then
-        returnhome()
-    end
-        returnhome()
-    end
-end
-
-while true do -- Spiral Movement Outwards Loop. Distance between spiral arms is radius * 2 = 16
-    turtle.dig()
-    turtle.forward()
-    scan()
-    returntick()
+    print("Found Ancient Debris at " .. targetLocation.x .. ", " .. targetLocation.y .. ", " .. targetLocation.z .. " (Distance: " .. targetDistance .. ")")
+return targetLocation, targetDistance
 end
