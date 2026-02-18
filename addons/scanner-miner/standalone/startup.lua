@@ -1,6 +1,5 @@
 turtle.refuel(1000)
 local fuel = turtle.getFuelLevel()
-local origin = gps.locate()
 
 local scanner = peripheral.find("universal_scanner")
 local radius = 8
@@ -136,11 +135,9 @@ end
 
 local function returntick()
     fuel = turtle.getFuelLevel()
-    currentPos = gps.locate()
     if distance() > fuel * 2 + 100 then
         returnhome()
     end
-    if currentPos.x - origin.x >= 64 or currentPos.y - origin.y >= 64 or currentPos.z - origin.z >= 64 then
         returnhome()
     end
 end
