@@ -5,7 +5,10 @@ if fuel < 100 then
 end
 local origin = {x=0, y=0, z=0}
 local currentPos = {x=0, y=0, z=0}
+local direction = 1 -- 1: forward/positive X, 2: right, 3: back, 4: left
 
+local targetLocation = nil
+local targetDistance = math.huge
 local scanner = peripheral.find("universal_scanner")
 local radius = 8
 print("Scanning at radius " .. radius)
@@ -24,21 +27,72 @@ local function ManhattanDistance(pos1, pos2)
     return math.abs(pos1.x - pos2.x) + math.abs(pos1.y - pos2.y) + math.abs(pos1.z - pos2.z)
 end
 
+local function filterBlocks(block)
+    if block.name == "minecraft:ancient_debris" then
+        location = {x=block.x, y=block.y, z=block.z}
+        distance = ManhattanDistance(location)
+        if distance < targetDistance then
+            targetLocation = location
+            targetDistance = distance
+        end
+    end
+end
+
 local function findNearest()
+    targetDistance = math.huge
+    targetLocation = nil
     local scanData = scanner.scan("block", radius)
     sleep(1.5) -- Give Scanner time to process
     for _, block in ipairs(scanData) do
-        if block.x == 0 then
-            if block.name == "minecraft:ancient_debris" then
-                location = {x=block.x, y=block.y, z=block.z}
-                distance = ManhattanDistance(location)
-                if distance < targetDistance then
-                    targetLocation = location
-                    targetDistance = distance
-                end
+        if rotation == 1 or rotation == 3 then
+            if block.x == 0 then
+                filterBlocks(block)
+            end
+        else
+            if block.z == 0 then
+                filterBlocks(block)
             end
         end
     end
-    print("Found Ancient Debris at " .. targetLocation.x .. ", " .. targetLocation.y .. ", " .. targetLocation.z .. " (Distance: " .. targetDistance .. ")")
-return targetLocation, targetDistance
+    if targetLocation then
+        print("Nearest Debris: " .. targetLocation.x .. ", " .. targetLocation.y .. ", " .. targetLocation.z .. " (Dist: " .. targetDistance .. ")")
+        return targetLocation, targetDistance
+    else
+        print("No debris found.")
+        return nil, nil
+    end
+end
+
+local function rotateTo(target)
+    if target - direction == 2 or direction - target == 2 then
+        turtle.turnRight()
+        turtle.turnRight()
+        direction = target
+    elseif direction - target == 1 or direction - target == -3 then
+        turtle.turnLeft()
+        direction = target
+    elseif direction - target == -1 or direction - target == 3 then
+        turtle.turnRight()
+        direction = target
+    end
+end
+
+
+local function gototarget(target)
+    local x, y, z = target.x, target.y, target.z
+    if z > 0 then
+        rotateTo(2)
+        for i = 1, z do
+            turtle.dig()
+            turtle.forward()
+            currentPos.z = currentPos.z + 1
+        end
+    end
+end
+
+
+
+while true do
+    local target, dist = findNearest()
+
 end
