@@ -29,8 +29,8 @@ end
 
 local function filterBlocks(block)
     if block.name == "minecraft:ancient_debris" then
-        location = {x=block.x, y=block.y, z=block.z}
-        distance = ManhattanDistance(location)
+        local location = {x=block.x, y=block.y, z=block.z}
+        local distance = ManhattanDistance(location)
         if distance < targetDistance then
             targetLocation = location
             targetDistance = distance
@@ -44,7 +44,7 @@ local function findNearest()
     local scanData = scanner.scan("block", radius)
     sleep(1.5) -- Give Scanner time to process
     for _, block in ipairs(scanData) do
-        if rotation == 1 or rotation == 3 then
+        if direction == 1 or direction == 3 then
             if block.x == 0 then
                 filterBlocks(block)
             end
@@ -61,6 +61,24 @@ local function findNearest()
         print("No debris found.")
         return nil, nil
     end
+end
+
+local function localToGlobal(pos)
+    local globalX, globalY, globalZ = pos.x, pos.y, pos.z
+    if direction == 1 then
+        globalX = currentPos.x + pos.x
+        globalZ = currentPos.z + pos.z
+    elseif direction == 2 then
+        globalX = currentPos.x - pos.z
+        globalZ = currentPos.z + pos.x
+    elseif direction == 3 then
+        globalX = currentPos.x - pos.x
+        globalZ = currentPos.z - pos.z
+    elseif direction == 4 then
+        globalX = currentPos.x + pos.z
+        globalZ = currentPos.z - pos.x
+    end
+    return {x=globalX, y=currentPos.y + pos.y, z=globalZ}
 end
 
 local function rotateTo(target)
