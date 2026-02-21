@@ -1,17 +1,31 @@
 turtle.refuel(1000)
 local fuel = turtle.getFuelLevel()
-if fuel < 100 then
-    print("Low on fuel.")
+local initialFuel = fuel
+if fuel < 1000 then
+    print("Low on fuel. " .. fuel .. " remaining.")
+    return
 end
+print ("Fuel level: " .. fuel)
 local origin = {x=0, y=0, z=0}
 local currentPos = {x=0, y=0, z=0}
 local direction = 1 -- 1: forward/positive X, 2: right, 3: back, 4: left
 
+local desiredBlock = "minecraft:ancient_debris"
+print("Mining for: " .. desiredBlock)
+
 local targetLocation = nil
 local targetDistance = math.huge
 local scanner = peripheral.find("universal_scanner")
+if not scanner then
+    print("No scanner found. Please attach a universal scanner.")
+    return
+end
 local radius = 8
 print("Scanning at radius " .. radius)
+
+if not peripheral.find("ender_modem") or not peripheral.find("wireless_modem") then
+    print("No Modem found. Might cause issues in the future.")
+end
 
 local function resetRot()
     while direction > 1 do
@@ -28,7 +42,7 @@ local function ManhattanDistance(pos1, pos2)
 end
 
 local function filterBlocks(block)
-    if block.name == "minecraft:ancient_debris" then
+    if block.name == desiredBlock then
         local location = {x=block.x, y=block.y, z=block.z}
         local distance = ManhattanDistance(location)
         if distance < targetDistance then
@@ -95,22 +109,76 @@ local function rotateTo(target)
     end
 end
 
+local function safeForward()
+    while turtle.detect() do
+        turtle.dig()
+    end
+    turtle.forward()
+    if direction == 1 then
+        currentPos.x = currentPos.x + 1
+    elseif direction == 2 then
+        currentPos.z = currentPos.z + 1
+    elseif direction == 3 then
+        currentPos.x = currentPos.x - 1
+    elseif direction == 4 then
+        currentPos.z = currentPos.z - 1
+    end
+end
 
 local function gototarget(target)
     local x, y, z = target.x, target.y, target.z
     if z > 0 then
         rotateTo(2)
         for i = 1, z do
-            turtle.dig()
-            turtle.forward()
-            currentPos.z = currentPos.z + 1
+            safeForward()
+        end
+    elseif z < 0 then
+        rotateTo(4)
+        for i = 1, -z do
+            safeForward()
+        end
+    end
+    if y > 0 then
+        for i = 1, y do
+            turtle.digUp()
+            turtle.up()
+            currentPos.y = currentPos.y + 1
+        end
+    elseif y < 0 then
+        for i = 1, -y do
+            turtle.digDown()
+            turtle.down()
+            currentPos.y = currentPos.y - 1
         end
     end
 end
 
-
+local function goBack()
+    rotateTo(3)
+     for i = 1, currentPos.x do
+        safeForward()
+    end
+    rotateTo(4)
+    for i = 1, currentPos.z do
+        safeForward()
+    end
+    rotateTo(2)
+    for i = 1, currentPos.y do
+        turtle.digDown()
+        turtle.down()
+    end
+end
 
 while true do
     local target, dist = findNearest()
-
+    if target then
+        gototarget(target)
+    end
+    rotateTo(1)
+    turtle.dig()
+    safeForward()
+    fuel = turtle.getFuelLevel()
+    if fuel < initialFuel * 0.4 then
+        goBack()
+    end
 end
