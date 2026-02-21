@@ -125,6 +125,14 @@ local function safeForward()
     end
 end
 
+local function safeUp()
+    while turtle.detectUp() do
+        turtle.digUp()
+    end
+    turtle.up()
+    currentPos.y = currentPos.y + 1
+end
+
 local function gototarget(target)
     local x, y, z = target.x, target.y, target.z
     if z > 0 then
@@ -141,8 +149,7 @@ local function gototarget(target)
     if y > 0 then
         for i = 1, y do
             turtle.digUp()
-            turtle.up()
-            currentPos.y = currentPos.y + 1
+            safeUp()
         end
     elseif y < 0 then
         for i = 1, -y do
@@ -171,8 +178,11 @@ end
 
 while true do
     local target, dist = findNearest()
-    if target then
+    while target do
         gototarget(target)
+        turtle.dig()
+        target, dist = findNearest()
+        safeForward()
     end
     rotateTo(1)
     turtle.dig()
@@ -180,5 +190,6 @@ while true do
     fuel = turtle.getFuelLevel()
     if fuel < initialFuel * 0.4 then
         goBack()
+        return
     end
 end
