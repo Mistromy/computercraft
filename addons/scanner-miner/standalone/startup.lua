@@ -160,6 +160,7 @@ local function gototarget(target)
             rotateTo(4)
         elseif direction == 4 then
             rotateTo(2)
+        end
         for i = 1, -x do
             safeForward()
         end
