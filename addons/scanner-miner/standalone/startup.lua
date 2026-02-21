@@ -146,6 +146,24 @@ local function gototarget(target)
             safeForward()
         end
     end
+    if x > 0 then
+        if direction == 2 then
+            rotateTo(4)
+        elseif direction == 4 then
+            rotateTo(2)
+        end
+        for i = 1, x do
+            safeForward()
+        end
+    elseif x < 0 then
+        if direction == 2 then
+            rotateTo(4)
+        elseif direction == 4 then
+            rotateTo(2)
+        for i = 1, -x do
+            safeForward()
+        end
+    end
     if y > 0 then
         for i = 1, y do
             turtle.digUp()
@@ -182,7 +200,7 @@ while true do
         gototarget(target)
         turtle.dig()
         target, dist = findNearest()
-        safeForward()
+        -- safeForward()
     end
     rotateTo(1)
     turtle.dig()
