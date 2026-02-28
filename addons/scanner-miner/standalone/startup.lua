@@ -123,6 +123,7 @@ local function safeForward()
     elseif direction == 4 then
         currentPos.z = currentPos.z - 1
     end
+    print ("Current Position: " .. currentPos.x .. ", " .. currentPos.y .. ", " .. currentPos.z)
 end
 
 local function safeUp()
@@ -207,6 +208,7 @@ while true do
     turtle.dig()
     safeForward()
     fuel = turtle.getFuelLevel()
+    print ("Current Fuel: " .. fuel)
     if fuel < initialFuel * 0.4 then
         goBack()
         return
