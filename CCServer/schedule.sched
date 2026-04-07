@@ -1,0 +1,71 @@
+{
+  cyclic = true,
+  entries = {
+    {
+      instruction = {
+        data = {
+          text = "MistStation",
+        },
+        id = "create:destination",
+      },
+      conditions = {
+        {
+          {
+            data = {
+              count = 1,
+              exact = 1,
+            },
+            id = "create:player_count",
+          },
+          {
+            data = {
+              value = 2,
+              time_unit = 1,
+            },
+            id = "create:delay",
+          },
+          {
+            data = {
+              count = 1,
+              exact = 1,
+            },
+            id = "create:player_count",
+          },
+        },
+      },
+    },
+    {
+      instruction = {
+        data = {
+          text = "FStation",
+        },
+        id = "create:destination",
+      },
+      conditions = {
+        {
+          {
+            data = {
+              count = 1,
+              exact = 1,
+            },
+            id = "create:player_count",
+          },
+          {
+            data = {
+              value = 2,
+              time_unit = 1,
+            },
+            id = "create:delay",
+          },
+          {
+            data = {
+              count = 1,
+              exact = 1,
+            },
+            id = "create:player_count",
+          },
+        },
+      },
+    },
+  },
+}
