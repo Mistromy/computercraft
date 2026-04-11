@@ -18,32 +18,51 @@ local authGrafana = {
 
 local currentStress = 0
 local stressCap = 0
-if peripheral.find("modem", rednet.open) then
-    print("Rednet modem found and opened.")
-else
-    print("No rednet modem found. Please connect one to receive stress data.")
-end
+peripheral.find("modem", rednet.open)
 
+local tube = peripheral.find("Create_NixieTube")
 
 local backplane = telem.backplane()
     :addInput("custom_short", telem.input.custom(function()
         return {
             custom_short_1 = currentStress,
-            custom_short_2 = stressCap
+            custom_short_2 = stressCap,
+            custom_short_3 = 0
         }
     end))
-    :addOutput("stress", telem.output.plotter.line(win, "custom_short_1", colors.black, colors.yellow))
+    :addOutput("stress", telem.output.plotter.multiLine(win, {
+        {name = "custom_short_1", color = colors.green },
+        {name = "custom_short_2", color = colors.red },
+        {name = "custom_short_3", color = colors.black }
+    }, colors.black, colors.yellow))
     -- :addOutput("influxdb", telem.output.grafana(authGrafana.endpoint, authGrafana.apiKey))
 
 
 local function getStress()
     while true do
-        local id, stress_data = rednet.receive("stressProtocol")
+        local id, stress_data = rednet.receive("statusProtocol")
         currentStress = stress_data.stress or 0
         stressCap = stress_data.stressCap or 0
     end
 end
 
+local function displayValue(value)
+    local fullString = string.format("%06d", value)
+    print(fullString)
+
+    tube.setText(fullString)
+end
+
+local function runNixies()
+    while true do
+        displayValue(currentStress)
+        sleep(0.5)
+    end
+end
+
 parallel.waitForAny(
-    backplane:cycleEvery(0.5), getStress
+    backplane:cycleEvery(0.5), getStress, runNixies
 )
+
+-- Nikie Tubes: left:2, middle:1, right:0
+

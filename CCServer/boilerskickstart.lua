@@ -24,82 +24,122 @@ local speedController = peripheral.find("")
 local stressometer = peripheral.wrap("Create_Stressometer_1")
 local mainClutch = peripheral.wrap("redstone_relay_6")
 
+local boilerActive_left   = false
+local boilerActive_middle = false
+local boilerActive_right  = false
+
+local numBoilersActive = 0
+
+local boiler = {
+    left = {
+        deployers = peripheral.wrap("redstone_relay_2"),
+        pumps = peripheral.wrap("redstone_relay_1"),
+        active = false
+    },
+    middle = {
+        deployers = peripheral.wrap("redstone_relay_1"),
+        pumps = peripheral.wrap("redstone_relay_4"),
+        active = false
+    },
+    right = {
+        deployers = peripheral.wrap("redstone_relay_0"),
+        pumps = peripheral.wrap("redstone_relay_5"),
+        active = false
+    }
+}
+
 peripheral.find("modem", rednet.open)
 
 print("System online...")
 
 -- Deployer Controls: true = deployers active, false = deployer retracted.
 local function setDeployer(side, state)
-    side.setOutput("front", not state)
+    -- side.setOutput("front", not state)
+    boiler[side].deployers.setOutput("front", not state)
 end
+
 local function setAllDeployers(state)
-    setDeployer(deployers_left, state)
-    setDeployer(deployers_middle, state)
-    setDeployer(deployers_right, state)
+    setDeployer(left, state)
+    setDeployer(middle, state)
+    setDeployer(right, state)
 end
 
 -- Pump Controls: true = pump on, false = pump off.
 local function setPump(side, state)
-    side.setOutput("left", not state)
+    -- side.setOutput("left", not state)
+    boiler[side].pumps.setOutput("left", not state)
 end
 local function setAllPumps(state)
-    setPump(pump_left, state)
-    setPump(pump_middle, state)
-    setPump(pump_right, state)
+    -- setPump(left, state)
+    -- setPump(middle, state)
+    -- setPump(right, state)
+    for k, v in pairs(boiler) do
+        setPump(k, state)
 end
+
+local function toggleBoiler(side, state)
+    setPump(side, state)
+    setDeployer(side, state)
+    boiler[side].active = state
 
 -- Main Clutch Controls: true = clutch engaged, false = clutch disengaged.
 local function connectClutch(state)
     mainClutch.setOutput("top", not state)
 end
 
-
 local function choke()
     setAllDeployers(false)
     setAllPumps(false)
 end
 
-local function startup()
+local function kickstart()
     connectClutch(false)
     setAllDeployers(false)
     setAllPumps(false)
+    toggleBoiler("left", true)
     redstone.setOutput("right", true)
-    setDeployer(deployers_right, true)
-    sleep(2)
-    setDeployer(deployers_right, false)
-    setPump(pump_right, true)
-    sleep(2)
+    sleep(3.5)
     redstone.setOutput("right", false)
-    setDeployer(deployers_right, true)
     connectClutch(true)
 end
 
 local function commandlistener()
     print("listening for on network 'boilers'... ")
     while true do
-        local id, message = rednet.receive("boilers")
-        if message == "start" then
-            startup()
-        elseif message == "choke" then
+        local id, message = rednet.receive("boilerProtocol")
+        if message.packet.action == "kickstart" then
+            kickstart()
+        elseif message.packet.action == "choke" then
             choke()
+        elseif message.packet.action == "start" then
+            toggleboiler(message.packet.target, true)
+        elseif message.packet.action == "stop" then
+            toggleboiler(message.packet.target, false)
         end
     end
 end
 
-local function measureStress()
+local function loop()
     while true do
         local stress = stressometer.getStress()
         local stressCap = stressometer.getStressCapacity()
-        data_stress = {
-            stress = stress,
-            stressCap = stressCap
+        local packet = {
+            data_stress = {
+                stress = stress,
+                stressCap = stressCap
+            }, 
+            active_boilers = {
+                left = boilerActive_left,
+                middle = boilerActive_middle,
+                right = boilerActive_right
+            }
         }
-        rednet.broadcast(data_stress, "stressProtocol")
+        rednet.broadcast(packet, "statusProtocol")
         sleep(0.5)
     end
 end
 
 parallel.waitForAny(
-    commandlistener, measureStress
+    commandlistener, loop
 )
 
