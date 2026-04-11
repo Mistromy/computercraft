@@ -50,7 +50,9 @@ local boiler = {
 
 peripheral.find("modem", rednet.open)
 
-print("System online...")
+if rednet.isOpen == true then 
+    print("System online...") else print ("Network Error. Rednet Offline.") print("have you checked if a wireless/ender modem is present?")
+end
 
 -- Deployer Controls: true = deployers active, false = deployer retracted.
 local function setDeployer(side, state)
@@ -87,6 +89,12 @@ local function connectClutch(state)
     mainClutch.setOutput("top", not state)
 end
 
+local function getStatus()
+    for side, v in pairs(boiler) do
+        v.active = not v.pumps.getOutput("front")
+    end
+end
+
 local function choke()
     setAllDeployers(false)
     setAllPumps(false)
@@ -107,14 +115,12 @@ local function commandlistener()
     print("listening for on network 'boilers'... ")
     while true do
         local id, message = rednet.receive("boilerProtocol")
-        if message.packet.action == "kickstart" then
+        if message.action == "kickstart" then
             kickstart()
-        elseif message.packet.action == "choke" then
+        elseif message.action == "choke" then
             choke()
-        elseif message.packet.action == "start" then
-            toggleboiler(message.packet.target, true)
-        elseif message.packet.action == "stop" then
-            toggleboiler(message.packet.target, false)
+        elseif messageaction == "toggle" then
+            toggleBoiler(message.target, message.value)
         end
     end
 end
@@ -140,6 +146,6 @@ local function loop()
 end
 
 parallel.waitForAny(
-    commandlistener, loop
+    commandlistener, loop, getStatus
 )
 

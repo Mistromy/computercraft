@@ -44,39 +44,21 @@ local function buttons()
             value = not boilers.left
         }
         rednet.broadcast(packet, network)
-end
-
-
-while true do
-    os.pullEvent("redstone")
-    if relay.getInput("top") then
+    elseif redstone.getInput("back") then
         local packet = {
-            action = "kickstart"
+            action = "toggle",
+            target = "middle",
+            value = not boilers.middle
         }
         rednet.broadcast(packet, network)
-    elseif redstone.getInput("right") the
-        while redstone.getInput("right") do sleep(0.2) end
-    end
-end
-
-while true do
-    os.pullEvent("redstone")
-    if relay.getInput("top") then
-        if not boiler1active
-            rednet.broadcast("kickstart", network)
-            boiler1active = true
-            relay.setOutput("left", true)
-        else
-            rednet.broadcast("choke", network)
-            boiler1active = false
-            relay.setOutput("left", true)
-        while redstone.getInput("left") do sleep(0.2) end
     elseif redstone.getInput("right") then
-        
-        while redstone.getInput("right") do sleep(0.2) end
+        local packet = {
+            action = "toggle",
+            target = "right",
+            value = not boilers.right
+        }
+        rednet.broadcast(packet, network)
     end
-    if redstone1 = active
-    relay.
 end
 
 parallel.waitForAny(
