@@ -11,6 +11,14 @@
 
 -- Pump Speeds:
 -- 1 Boiler: 96, 
+-- 2 boilers: 160
+-- 3 boilers: 256
+
+speeds = [
+    1 : 
+]
+
+local pumpSpeedController = peripheral.wrap("Create_RotationSpeedController_1")
 
 local deployers_left = peripheral.wrap("redstone_relay_2")
 local deployers_middle = peripheral.wrap("redstone_relay_1")
@@ -33,7 +41,7 @@ local numBoilersActive = 0
 local boiler = {
     left = {
         deployers = peripheral.wrap("redstone_relay_2"),
-        pumps = peripheral.wrap("redstone_relay_1"),
+        pumps = peripheral.wrap("redstone_relay_3"),
         active = false
     },
     middle = {
@@ -70,6 +78,7 @@ end
 local function setPump(side, state)
     -- side.setOutput("left", not state)
     boiler[side].pumps.setOutput("left", not state)
+    print(side, "set to", state)
 end
 local function setAllPumps(state)
     for k, v in pairs(boiler) do
@@ -102,13 +111,15 @@ end
 
 local function kickstart()
     print("kickstarting")
-    
+
     connectClutch(false)
     setAllDeployers(false)
     setAllPumps(false)
-    toggleBoiler("left", true)
+    setDeployer("right", true)
     redstone.setOutput("right", true)
-    sleep(3.5)
+    sleep(2)
+    setPump("right", true)
+    sleep(4)
     redstone.setOutput("right", false)
     connectClutch(true)
 end
