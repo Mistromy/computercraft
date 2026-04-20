@@ -1,6 +1,8 @@
 local CONFIG = {
-	channelProtocol = "xray_scan_v1",
-	updateInterval = 1.25,
+	requestProtocol = "xray_scan_req_v1",
+	responseProtocol = "xray_scan_v1",
+	responseTimeout = 2.0,
+	scanKey = keys.leftAlt,
 	boxColor = 0x40FF40AA,
 	offset = { x = -0.6, y = -1.5, z = -0.65 },
 	yawQuarterTurns = 0,
@@ -187,11 +189,51 @@ clearAllStartup()
 
 print("xray head renderer online")
 print("modem: " .. modemName)
-print("protocol: " .. CONFIG.channelProtocol)
+print("request protocol: " .. CONFIG.requestProtocol)
+print("response protocol: " .. CONFIG.responseProtocol)
+print("press LEFT ALT to scan")
+
+local function nextRequestId()
+	if os.epoch then
+		return tostring(os.epoch("utc"))
+	end
+	return tostring(math.floor(os.clock() * 1000))
+end
+
+local function requestScanAndDraw()
+	local requestId = nextRequestId()
+	local requesterId = os.getComputerID()
+
+	rednet.broadcast({
+		v = 1,
+		cmd = "scan",
+		requestId = requestId,
+		requester = requesterId,
+	}, CONFIG.requestProtocol)
+
+	local deadline = os.clock() + CONFIG.responseTimeout
+	while true do
+		local remaining = deadline - os.clock()
+		if remaining <= 0 then
+			print("scan timeout")
+			return
+		end
+
+		local _, message = rednet.receive(CONFIG.responseProtocol, remaining)
+		if type(message) == "table"
+			and message.requestId == requestId
+			and (message.requester == nil or message.requester == requesterId)
+		then
+			drawPacket(message)
+			print(string.format("rendered %d blocks", type(message.blocks) == "table" and #message.blocks or 0))
+			return
+		end
+	end
+end
 
 while true do
-	local _, message = rednet.receive(CONFIG.channelProtocol, CONFIG.updateInterval)
-	if message then
-		drawPacket(message)
+	local _, key = os.pullEvent("key")
+	if key == CONFIG.scanKey then
+		requestScanAndDraw()
 	end
 end

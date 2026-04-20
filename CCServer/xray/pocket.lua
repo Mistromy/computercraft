@@ -1,7 +1,7 @@
 local CONFIG = {
-	channelProtocol = "xray_scan_v1",
+	requestProtocol = "xray_scan_req_v1",
+	responseProtocol = "xray_scan_v1",
 	scanRadius = 12,
-	scanInterval = 1.25,
 	maxBlocksPerPacket = 256,
 	-- Keep this whitelist short for lower network+render load.
 	blockWhitelist = {
@@ -53,7 +53,9 @@ end
 
 print("xray pocket sender online")
 print("modem: " .. modemName)
-print("radius: " .. CONFIG.scanRadius .. " | interval: " .. CONFIG.scanInterval .. "s")
+print("radius: " .. CONFIG.scanRadius)
+print("request protocol: " .. CONFIG.requestProtocol)
+print("response protocol: " .. CONFIG.responseProtocol)
 
 local function scanBlocks(radius)
 	-- Peripherals++ scanner style: scan("block", radius)
@@ -80,7 +82,7 @@ local function tryLocate()
 	return { x = x, y = y, z = z }
 end
 
-while true do
+local function buildScanPacket(requester, requestId)
 	local raw = scanBlocks(CONFIG.scanRadius)
 	local filtered = {}
 
@@ -99,17 +101,27 @@ while true do
 		end
 	end
 
-	local packet = {
+	return {
 		v = 1,
 		t = nowMillis(),
 		sender = os.getComputerID(),
+		requester = requester,
+		requestId = requestId,
 		pos = tryLocate(),
 		radius = CONFIG.scanRadius,
 		blocks = filtered,
 	}
 
-	rednet.broadcast(packet, CONFIG.channelProtocol)
-	print(string.format("sent %d target blocks", #filtered))
+end
 
-	sleep(CONFIG.scanInterval)
+while true do
+	local senderId, message = rednet.receive(CONFIG.requestProtocol)
+	if type(message) == "table" and message.cmd == "scan" then
+		local requester = message.requester or senderId
+		local requestId = message.requestId
+		local packet = buildScanPacket(requester, requestId)
+
+		rednet.send(requester, packet, CONFIG.responseProtocol)
+		print(string.format("sent %d target blocks to %d", #packet.blocks, requester))
+	end
 end
