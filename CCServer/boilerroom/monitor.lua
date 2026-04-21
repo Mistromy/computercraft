@@ -41,8 +41,10 @@ local backplane = telem.backplane()
 local function getStress()
     while true do
         local id, stress_data = rednet.receive("statusProtocol")
-        currentStress = stress_data.stress or 0
-        stressCap = stress_data.stressCap or 0
+        if type(stress_data) == "table" then
+            currentStress = stress_data.stress or (stress_data.data_stress and stress_data.data_stress.stress) or 0
+            stressCap = stress_data.stressCap or (stress_data.data_stress and stress_data.data_stress.stressCap) or 0
+        end
     end
 end
 
