@@ -20,6 +20,13 @@ local speeds = {
     [3] = 256
 }
 
+local SU_MODEL = {
+    [0] = { pumps = 0, pumpEach = 0, deployers = 0, deployerEach = 256 },
+    [1] = { pumps = 2, pumpEach = 384, deployers = 4, deployerEach = 256 },
+    [2] = { pumps = 4, pumpEach = 640, deployers = 8, deployerEach = 256 },
+    [3] = { pumps = 6, pumpEach = 1024, deployers = 12, deployerEach = 256 }
+}
+
 local START_ORDER = { "right", "middle", "left" }
 local STATE_FILE = "boiler_state"
 
@@ -133,7 +140,7 @@ local function loadState()
 end
 
 local function setPumpSpeed(level)
-    local target = speeds[level] or 0
+    local target = speeds[level] or speeds[1]
     if not pumpSpeedController then
         return
     end
@@ -143,6 +150,37 @@ local function setPumpSpeed(level)
     elseif pumpSpeedController.setSpeed then
         pcall(function() pumpSpeedController.setSpeed(target) end)
     end
+end
+
+local function getStressValues()
+    if not stressometer then
+        return 0, 0
+    end
+
+    local stress = stressometer.getStress() or 0
+    local stressCap = stressometer.getStressCapacity() or 0
+    return stress, stressCap
+end
+
+local function boilerLoadForLevel(level)
+    local clamped = math.max(0, math.min(3, math.floor(level or 0)))
+    local model = SU_MODEL[clamped]
+    return (model.pumps * model.pumpEach) + (model.deployers * model.deployerEach)
+end
+
+local function shouldDecoupleForLevelIncrease(currentLevel, targetLevel)
+    if targetLevel <= currentLevel then
+        return false
+    end
+
+    local stress, stressCap = getStressValues()
+    if stressCap <= 0 then
+        return false
+    end
+
+    local deltaLoad = boilerLoadForLevel(targetLevel) - boilerLoadForLevel(currentLevel)
+    local projected = stress + deltaLoad
+    return projected > stressCap
 end
 
 local function toggleBoiler(side, state)
@@ -177,7 +215,7 @@ local function choke()
     boiler.middle.active = false
     boiler.right.active = false
     numBoilersActive = 0
-    setPumpSpeed(0)
+    setPumpSpeed(1)
     saveState()
 end
 
@@ -232,6 +270,7 @@ end
 
 local function ensureLevel(level)
     local clamped = math.max(0, math.min(3, math.floor(level or 0)))
+    local currentLevel = getActiveCount()
     desiredLevel = clamped
 
     if clamped == 0 then
@@ -239,11 +278,26 @@ local function ensureLevel(level)
         return
     end
 
+    local decoupleForRamp = shouldDecoupleForLevelIncrease(currentLevel, clamped)
+    if decoupleForRamp then
+        print("pre-decoupling clutch: projected overstress on level", clamped)
+        connectClutch(false)
+    end
+
     if not boiler.right.active then
         kickstart()
+        if decoupleForRamp then
+            -- Keep factory disconnected while applying the next level.
+            connectClutch(false)
+        end
     end
 
     applyLevel(clamped)
+
+    if decoupleForRamp then
+        sleep(1)
+        connectClutch(true)
+    end
 end
 
 local function parseLegacyTarget(target, value)
