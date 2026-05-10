@@ -4,6 +4,7 @@ and an advanced mining script using ccchunkloaders and some other addons. with a
 
 # Libs:
 - [Telem](https://telem.cyberbit.dev)
+- [BasaltUI](https://basalt.madefor.cc/)
 
 
 - [LAMA](https://github.com/fnuecke/lama) (sadly doesnt work)
