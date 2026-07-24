@@ -64,9 +64,23 @@ local function displayLoop()
 end
 
 
-local function rednetLoop()
+local function rednetRecieveLoop()
     while true do
-        _, leverpos = rednet.receive(boilerProtocol)
+        _, msg = rednet.receive(boilerProtocol)
+        if msg.type == "leverpos" then
+            leverpos = msg.pos
+        end
+    end
+end
+
+local function rednetBroadcastLoop()
+    while true do
+        rednet.broadcast({
+            type = "stress_telem",
+            stress = stressometer.getStress(),
+            stressCap = stressometer.getStressCapacity()
+        }, boilerProtocol)
+        sleep(0.25)
     end
 end
 
@@ -77,4 +91,4 @@ print("Protocol: " .. boilerProtocol)
 print("Boilers: " .. table.concat(boilers, ", "))
 
 leverpos = 0
-parallel.waitForAny(displayLoop, rednetLoop)
+parallel.waitForAny(displayLoop, rednetRecieveLoop, rednetBroadcastLoop)

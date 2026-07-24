@@ -1,56 +1,35 @@
 peripheral.find("modem", rednet.open)
-local boilerProtocol = ""
 
 local args = { ... }
 
-local isFirstRun = false
+local startup = require("pkg.startup")
+local setup = require("pkg.setup")
+local graph = require("pkg.graph")
 
-local display = peripheral.find("Create_DisplayLink")
-local vault = peripheral.wrap("create:item_vault_0")
+local config = startup.loadConfig()
+boilerProtocol = config.boilerProtocol or ""
 
-if fs.exists("config.json") then
-    local file = fs.open("config.json", "r")
-    local jsonString = file.readAll()
-    file.close()
-    local data = textutils.unserializeJSON(jsonString)
-    boilerProtocol = data.boilerProtocol or ""
+local isFirstRun = startup.init(...)
+
+if isFirstRun or not fs.exists("config.json") then
+    boilerProtocol = setup.standardSetup()
+    local configdata = {
+        boilerProtocol = boilerProtocol
+    }
+    setup.writeConfig(configdata)
 end
 
-
-for i, arg in ipairs(args) do
-    if arg == "-n" or arg == "--new" then
-        isFirstRun = true
-        break
-    end
-end
-
-if isFirstRun then
-    print("=== First-Time Setup Sequence ===")
-    print("Welcome to the setup manager.")
-
-    write("Enter Boiler Protocol Name\nor press Enter to skip: ")
-    input = read()
-    if input == "" then
-        print("Skipped.")
-    else
-        boilerProtocol = input
-        print("Boiler Protocol Name set to: " .. boilerProtocol)
-        
-        local data = {
-            boilerProtocol = boilerProtocol
-        }
-        local jsonString = textutils.serializeJSON(data)
-        local file = fs.open("config.json", "w")
-        file.write(jsonString)
-        file.close()
-    end
-end
 shell.run("clear")
 print("Booting system...")
 print("Boiler Protocol: " .. boilerProtocol)
 
-while true do
-    leverpos = redstone.getAnalogInput("top")
-    rednet.broadcast(leverpos, boilerProtocol)
-    sleep(0.5)
+local function leverPosLoop()
+    while true do
+        leverpos = redstone.getAnalogInput("top")
+        rednet.broadcast({type = "leverpos", pos = leverpos}, boilerProtocol)
+        sleep(0.5)
+    end
 end
+
+
+parallel.waitForAny(leverPosLoop, function() if peripheral.find("monitor") then graph.run(boilerProtocol) end end)
