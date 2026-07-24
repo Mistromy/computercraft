@@ -1,4 +1,6 @@
-local function init()
+local startup = {}
+
+function startup.init(...)
     local args = { ... }
     local isFirstRun = false
     for i, arg in ipairs(args) do
@@ -10,7 +12,7 @@ local function init()
     return isFirstRun
 end
 
-local function loadConfig()
+function startup.loadConfig()
     if not fs.exists("config.json") then
         return {}
     end
@@ -21,3 +23,5 @@ local function loadConfig()
 
     return textutils.unserializeJSON(jsonString) or {}
 end
+
+return startup

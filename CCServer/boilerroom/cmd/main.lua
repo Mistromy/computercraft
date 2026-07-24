@@ -1,7 +1,13 @@
 local utils = require("pkg.utils")
-local startup = require("pkg.startup")
 local inTable = utils.inTable
 local getItemCount = utils.getItemCount
+
+local startup = require("pkg.startup")
+local setup = require("pkg.setup")
+
+local mainsetup = require("internal.main.setup")
+local waitForConfirmation = mainsetup.waitForConfirmation
+local listenForBoilers = mainsetup.listenForBoilers
 
 local display = peripheral.find("Create_DisplayLink")
 local vault = peripheral.wrap("create:item_vault_0")
@@ -9,13 +15,26 @@ local boilerProtocol = ""
 local boilers = {}
 peripheral.find("modem", rednet.open)
 
-local config = startup.LoadConfig()
-local isFirstRun = startup.init()
 
-if isFirstRun then
-    
+local config = startup.loadConfig()
+boilerProtocol = config.boilerProtocol or ""
+boilers = config.boilers or {}
+
+local isFirstRun = startup.init(...)
+
+if isFirstRun or not fs.exists("config.json") then
+    local boilerProtocol = setup.standardSetup()
+    boilers = {}
+
+    local listenTask = mainsetup.listenForBoilers(boilers)    
+    parallel.waitForAny(waitForConfirmation, listenTask)
+    local configdata = {
+        boilerProtocol = boilerProtocol,
+        boilers = boilers
+    }
+
+    setup.writeConfig(configdata)
 end
-
 
 
 local stressometer = peripheral.wrap("Create_Stressometer_2")

@@ -1,4 +1,6 @@
-local function inTable(tbl, item)
+local utils = {}
+
+function utils.inTable(tbl, item)
     for _, val in ipairs(tbl) do
         if val == item then return true end
     end
@@ -9,7 +11,7 @@ end
 -- @param container table: The peripheral handle (e.g., vault)
 -- @param itemName string: The item registry name (e.g., "minecraft:diamond")
 -- @return number: The total count of that item
-local function getItemCount(container, itemName)
+function utils.getItemCount(container, itemName)
     local rawData = container.items()
     local total = 0
 
@@ -21,3 +23,5 @@ local function getItemCount(container, itemName)
 
     return total
 end
+
+return utils
