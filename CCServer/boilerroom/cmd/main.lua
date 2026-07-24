@@ -23,11 +23,13 @@ boilers = config.boilers or {}
 local isFirstRun = startup.init(...)
 
 if isFirstRun or not fs.exists("config.json") then
-    local boilerProtocol = setup.standardSetup()
+    boilerProtocol = setup.standardSetup()
     boilers = {}
-
-    local listenTask = mainsetup.listenForBoilers(boilers)    
-    parallel.waitForAny(waitForConfirmation, listenTask)
+  
+    parallel.waitForAny(
+        waitForConfirmation,
+        function() mainsetup.listenForBoilers(boilers)  end
+    )
     local configdata = {
         boilerProtocol = boilerProtocol,
         boilers = boilers
