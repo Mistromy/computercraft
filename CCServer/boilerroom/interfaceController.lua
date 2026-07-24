@@ -49,8 +49,8 @@ shell.run("clear")
 print("Booting system...")
 print("Boiler Protocol: " .. boilerProtocol)
 
-
-
-print("shutting down in 4 seconds...")
-sleep(4)
-os.shutdown()
+while true do
+    leverpos = redstone.getAnalogInput("top")
+    rednet.broadcast(leverpos, boilerProtocol)
+    sleep(0.5)
+end
