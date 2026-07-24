@@ -46,32 +46,33 @@ if isFirstRun then
     print("that is the order in which the computer will remember them, and the order of the startup sequence.")
 
     write("Enter Boiler Protocol Name\nor press Enter to skip: ")
-    boilerProtocol = read()
-    if boilerProtocol == "" then
-        return
-    else    
-    print("Boiler Protocol Name set to: " .. boilerProtocol)
-    
-    local data = {
-        boilerProtocol = boilerProtocol
-    }
-    local jsonString = textutils.serializeJSON(data)
-    local file = fs.open("config.json", "w")
-    file.write(jsonString)
-    file.close()
+    input = read()
+    if input == "" then
+        print("Skipped.")
+    else
+        boilerProtocol = input
+        print("Boiler Protocol Name set to: " .. boilerProtocol)
+        
+        local data = {
+            boilerProtocol = boilerProtocol
+        }
+        local jsonString = textutils.serializeJSON(data)
+        local file = fs.open("config.json", "w")
+        file.write(jsonString)
+        file.close()
     end
+end
 
-else
-    print("Booting system...")
-    print("Protocol: " .. boilerProtocol)
-    while true do
-        local cobble = getItemCount(vault, "minecraft:cobblestone")
-        display.clear()
-        display.setCursorPos(1, 1)
-        display.write("Cob: " .. string.format("%d", cobble))
-        display.setCursorPos(1, 2)
-        display.write("fuel: " .. string.format("%d", cobble / 160))
-        display.update()
-        sleep(2.5)
-    end
+shell.run("clear")
+print("Booting system...")
+print("Protocol: " .. boilerProtocol)
+while true do
+    local cobble = getItemCount(vault, "minecraft:cobblestone")
+    display.clear()
+    display.setCursorPos(1, 1)
+    display.write("Cob: " .. string.format("%d", cobble))
+    display.setCursorPos(1, 2)
+    display.write("fuel: " .. string.format("%d", cobble / 160))
+    display.update()
+    sleep(2.5)
 end
